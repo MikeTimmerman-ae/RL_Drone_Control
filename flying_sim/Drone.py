@@ -33,9 +33,12 @@ class Drone:
             x_next[2] = theta + self.dt * omega
 
             # Configuration variable update
-            x_next[3] = vx + self.dt * (T1 + T2) * params.thrust_mag * np.sin(theta) / params.m
-            x_next[4] = vy + self.dt * (T1 + T2) * params.thrust_mag * np.cos(theta) / params.m - 9.81
-            x_next[5] = omega + self.dt * (T2 - T1) * params.thrust_mag * params.l / params.I
+            x_next[3] = vx + self.dt * \
+                (T1 + T2) * params.thrust_mag * np.sin(theta) / params.m
+            x_next[4] = vy + self.dt * \
+                (T1 + T2) * params.thrust_mag * np.cos(theta) / params.m - 9.81
+            x_next[5] = omega + self.dt * \
+                (T2 - T1) * params.thrust_mag * params.l / params.I
 
             return x_next
 
@@ -46,6 +49,9 @@ class Drone:
         # Create Sovler
         solver = NonlinearIOSystem(updfcn, outfcn)
         return solver
+
+    def __str__(self) -> str:
+        return "Drone"
 
     def step(self, u, params):
         self.x = self.solver.dynamics(self.t, self.x, u, params)
