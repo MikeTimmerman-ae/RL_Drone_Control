@@ -47,10 +47,10 @@ class FlightEnv(gym.Env):
 
     def step(self, action):
         # Map the action (element of {0,1,2,3}) to the direction we walk in
-
+        self.drone.step(action, self.config)
 
         # An episode is done iff the agent has reached the target
-        terminated = np.linalg.norm(self.x[:2] - self.config.target) < 1
+        terminated = np.linalg.norm(self.drone.x[:2] - self.config.target) < 1
         reward = 1 if terminated else 0  # Binary sparse rewards
         observation = self._get_obs()
         info = self._get_info()
