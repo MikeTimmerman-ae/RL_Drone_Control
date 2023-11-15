@@ -1,5 +1,5 @@
 import gymnasium as gym
-env = gym.make("LunarLander-v2")
+env = gym.make("flying_sim:flying_sim/PIDFlightArena-v0")
 observation, info = env.reset(seed=42)
 
 for _ in range(1000):
