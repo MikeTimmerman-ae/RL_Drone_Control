@@ -1,5 +1,7 @@
-from baseline.gain_scheduled import GainScheduled, PlanarQuadrotor
+from baseline.gain_scheduled import GainScheduled
 from flying_sim.trajectory import Trajectory
+from flying_sim.drone import Drone
+from flying_sim.config import Config
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -9,16 +11,16 @@ matplotlib.use('TkAgg')
 
 
 def main():
-
+    config = Config()
     # Configure reference trajectory
-    trajectory = Trajectory()
+    trajectory = Trajectory(config)
     tf, f_sref, f_uref = trajectory.interp_trajectory()
 
     # Configure drone
-    planar_quad = PlanarQuadrotor()
+    planar_quad = Drone(config)
 
     # Configure controllers
-    gain_scheduled = GainScheduled()
+    gain_scheduled = GainScheduled(config)
 
     states = [f_sref(0)]
     dt = 0.01
@@ -29,7 +31,7 @@ def main():
         control = u_nom - K.dot(states[-1] - x_nom)
         control = np.clip(control, planar_quad.min_thrust_per_prop, planar_quad.max_thrust_per_prop)
 
-        next_state = planar_quad.discrete_step(states[-1], control, dt)
+        next_state = planar_quad.step_RK4(states[-1], control, dt)
         states.append(next_state)
 
         t.append(t[-1]+dt)
@@ -39,7 +41,7 @@ def main():
     x_ref = f_sref(t)
 
     plt.figure()
-    plt.plot(x_ref[:, 0], x_ref[:, 2], 'r-', states[:, 0], states[:, 2], 'g+')
+    plt.plot(x_ref[:, 0], x_ref[:, 1], 'r-', states[:, 0], states[:, 1], 'g+')
     plt.show()
 
     return 0

@@ -1,63 +1,66 @@
-from control import NonlinearIOSystem
-import numpy as np
+from flying_sim.config import Config
 
-from flying_sim.config import DroneConfig
+import numpy as np
 
 
 class Drone:
-    def __init__(self, config: DroneConfig):
-        self.dt = config.dt
-        self.tf = config.tf
-        self.m = config.m
-        self.I = config.Inertia
-        self.l = config.length
-        self.thrust_mag = config.thrust_mag
+    def __init__(self, config: Config):
+        self.t = 0
 
-        self.t = config.t0
-        self.state: np.ndarray = config.state_0
-        self.solver = self.dynamics()
+        self.x_dim = config.drone_config.x_dim  # state dimension
+        self.u_dim = config.drone_config.u_dim  # control dimension
+        self.g = config.drone_config.g  # gravity (m / s**2)
+        self.m = config.drone_config.m  # mass (kg)
+        self.l = config.drone_config.l  # half-length (m)
+        self.I = config.drone_config.I  # moment of inertia about the out-of-plane axis (kg * m**2)
+        self.Cd_v = config.drone_config.Cd_v  # translational drag coefficient
+        self.Cd_phi = config.drone_config.Cd_phi  # rotational drag coefficient
 
-    def dynamics(self) -> NonlinearIOSystem:
-        """ Returns instance of 'NonlinearIOSsytem' """
+        # Control constraints
+        self.max_thrust_per_prop = 0.75 * self.m * self.g  # total thrust-to-weight ratio = 1.5
+        self.min_thrust_per_prop = 0  # at least until variable-pitch quadrotors become mainstream :D
 
-        # Define Update Equation
-        def updfcn(t, x, u: np.ndarray, params: dict):
-            # Thrust values
-            T1 = u[0]
-            T2 = u[1]
+    def ode(self, state: np.array, control: np.array) -> np.array:
+        """ Continuous-time dynamics of a planar quadrotor expressed as an ODE """
+        x, y, theta, v_x, v_y, omega = state
+        T_1, T_2 = control
+        return np.array([
+            v_x,
+            v_y,
+            omega,
+            (-(T_1 + T_2) * np.sin(theta) - self.Cd_v * v_x) / self.m,
+            ((T_1 + T_2) * np.cos(theta) - self.Cd_v * v_y) / self.m - self.g,
+            ((T_2 - T_1) * self.l - self.Cd_phi * omega) / self.I,
+        ])
 
-            px, py, theta = x[:3]  # Configuration variables
-            vx, vy, omega = x[3:6]  # Velocity variables
+    def step_RK1(self, state: np.array, control: np.array, dt: float) -> np.array:
+        """ Discrete-time dynamics (Euler-integrated) of a planar quadrotor """
+        self.t += dt
+        return state + dt * self.ode(state, control)
 
-            # Calculate next state
-            x_next = np.zeros(6)
+    def step_RK4(self, state: np.array, control: np.array, dt: float) -> np.array:
+        """ Discrete-time dynamics (Runge-Kutta 4) of a planar quadrotor """
+        k1 = self.ode(state, control)
+        k2 = self.ode(state + dt / 2 * k1, control)
+        k3 = self.ode(state + dt / 2 * k2, control)
+        k4 = self.ode(state + dt * k3, control)
+        self.t += dt
+        return state + dt * (1/6*k1 + 1/3*k2 + 1/3*k3 + 1/6*k4)
 
-            # Configuration variable update
-            x_next[0] = px + self.dt * vx
-            x_next[1] = py + self.dt * vy
-            x_next[2] = theta + self.dt * omega
-
-            # Configuration variable update
-            x_next[3] = vx + self.dt * \
-                (T1 + T2) * params["thrust_mag"] * np.sin(theta) / params["m"]
-            x_next[4] = vy + self.dt * \
-                (T1 + T2) * params["thrust_mag"] * \
-                np.cos(theta) / params["m"] - 9.81
-            x_next[5] = omega + self.dt * \
-                (T2 - T1) * params["thrust_mag"] * \
-                params["length"] / params["Inertia"]
-
-            return x_next
-
-        # Define Output Equation
-        def outfcn(t, x, u, params=None):
-            return x
-
-        # Create Sovler
-        solver = NonlinearIOSystem(updfcn, outfcn)
-        return solver
-
-    def step(self, u: np.ndarray, params: DroneConfig):
-        assert u.shape == (2, 1)
-        self.state = self.solver.dynamics(self.t, self.state, u, params.dict())
-        self.t += self.dt
+    def get_continuous_jacobians(self, state_nominal: np.array, control_nominal: np.array) -> np.array:
+        """Continuous-time Jacobians of planar quadrotor, written as a function of input state and control"""
+        x, y, theta, v_x, v_y, omega = state_nominal
+        T_1, T_2 = control_nominal
+        A = np.array([[0., 0., 0., 1., 0., 0.],
+                      [0., 0., 0., 0., 1., 0.],
+                      [0., 0., 0., 0., 0., 1.],
+                      [0., 0., -(T_1 + T_2) * np.cos(theta) / self.m, -self.Cd_v / self.m, 0., 0.],
+                      [0., 0., -(T_1 + T_2) * np.sin(theta) / self.m, 0., -self.Cd_v / self.m, 0.],
+                      [0., 0., 0., 0., 0., -self.Cd_phi / self.I]])
+        B = np.array([[0., 0.],
+                      [0., 0.],
+                      [0., 0.],
+                      [-np.sin(theta) / self.m, -np.sin(theta) / self.m],
+                      [np.cos(theta) / self.m, np.cos(theta) / self.m],
+                      [-self.l / self.I, self.l / self.I]])
+        return A, B
