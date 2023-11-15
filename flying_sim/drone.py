@@ -21,8 +21,11 @@ class Drone:
         """ Returns instance of 'NonlinearIOSsytem' """
 
         # Define Update Equation
-        def updfcn(t, x, u, params: dict):
-            T1, T2 = u  # Thrust values
+        def updfcn(t, x, u: np.ndarray, params: dict):
+            # Thrust values
+            T1 = u[0]
+            T2 = u[1]
+
             px, py, theta = x[:3]  # Configuration variables
             vx, vy, omega = x[3:6]  # Velocity variables
 
@@ -54,9 +57,7 @@ class Drone:
         solver = NonlinearIOSystem(updfcn, outfcn)
         return solver
 
-    def __str__(self) -> str:
-        return "Drone"
-
-    def step(self, u, params: DroneConfig):
+    def step(self, u: np.ndarray, params: DroneConfig):
+        assert u.shape == (2, 1)
         self.state = self.solver.dynamics(self.t, self.state, u, params.dict())
         self.t += self.dt
