@@ -4,16 +4,19 @@ import pygame
 import gymnasium as gym
 from gymnasium import spaces
 
-from drone import Drone
+from flying_sim.drone import Drone
+from flying_sim.config import DroneConfig, DEFAULT_DRONE_CONFIG
 
 
-class FlightEnv(gym.Env):
+class PIDFlightEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
 
-    def __init__(self, config, render_mode=None):
-        self.action_space = spaces.Box(low=0.0, high=1.0, shape=(2, 1), dtype=np.float32)
+    def __init__(self, config: DroneConfig = None, render_mode=None):
+        self.action_space = spaces.Box(
+            low=0.0, high=1.0, shape=(2, 1), dtype=np.float32)
 
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(12, 1), dtype=np.float32)
+        self.observation_space = spaces.Box(
+            low=-np.inf, high=np.inf, shape=(12, 1), dtype=np.float32)
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
@@ -21,8 +24,11 @@ class FlightEnv(gym.Env):
         self.window = None
         self.clock = None
 
-        self.dt = config.dt
-        self.configure(config)
+        if config is not None:
+            self.configure(config)
+        else:
+            print("Using Default Drone Configurations")
+            self.configure(DEFAULT_DRONE_CONFIG)
 
     def configure(self, config):
         self.config = config
@@ -32,7 +38,7 @@ class FlightEnv(gym.Env):
         return self.drone.x
 
     def _get_info(self):
-        return None
+        pass
 
     def reset(self, seed=None, options=None):
         # We need the following line to seed self.np_random

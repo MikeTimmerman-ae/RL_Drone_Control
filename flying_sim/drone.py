@@ -1,14 +1,16 @@
 from control import NonlinearIOSystem
 import numpy as np
 
+from flying_sim.config import DroneConfig
+
 
 class Drone:
-    def __init__(self, config):
+    def __init__(self, config: DroneConfig):
         self.dt = config.dt
         self.tf = config.tf
         self.m = config.m
-        self.I = config.I
-        self.l = config.l
+        self.I = config.Inertia
+        self.l = config.length
         self.thrust_mag = config.thrust_mag
 
         self.t = config.t0
