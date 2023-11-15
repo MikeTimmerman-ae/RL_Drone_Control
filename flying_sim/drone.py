@@ -21,7 +21,7 @@ class Drone:
         """ Returns instance of 'NonlinearIOSsytem' """
 
         # Define Update Equation
-        def updfcn(t, x, u, params):
+        def updfcn(t, x, u, params: dict):
             T1, T2 = u  # Thrust values
             px, py, theta = x[:3]  # Configuration variables
             vx, vy, omega = x[3:6]  # Velocity variables
@@ -36,16 +36,18 @@ class Drone:
 
             # Configuration variable update
             x_next[3] = vx + self.dt * \
-                (T1 + T2) * params.thrust_mag * np.sin(theta) / params.m
+                (T1 + T2) * params["thrust_mag"] * np.sin(theta) / params["m"]
             x_next[4] = vy + self.dt * \
-                (T1 + T2) * params.thrust_mag * np.cos(theta) / params.m - 9.81
+                (T1 + T2) * params["thrust_mag"] * \
+                np.cos(theta) / params["m"] - 9.81
             x_next[5] = omega + self.dt * \
-                (T2 - T1) * params.thrust_mag * params.l / params.I
+                (T2 - T1) * params["thrust_mag"] * \
+                params["length"] / params["Inertia"]
 
             return x_next
 
         # Define Output Equation
-        def outfcn(t, x, u, params):
+        def outfcn(t, x, u, params=None):
             return x
 
         # Create Sovler
@@ -55,6 +57,6 @@ class Drone:
     def __str__(self) -> str:
         return "Drone"
 
-    def step(self, u, params):
-        self.x = self.solver.dynamics(self.t, self.x, u, params)
+    def step(self, u, params: DroneConfig):
+        self.x = self.solver.dynamics(self.t, self.x, u, params.dict())
         self.t += self.dt

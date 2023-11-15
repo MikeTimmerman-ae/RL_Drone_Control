@@ -1,5 +1,5 @@
-from dataclasses import dataclass
-import numpy
+from dataclasses import asdict, dataclass
+import numpy as np
 
 
 @dataclass
@@ -13,6 +13,10 @@ class DroneConfig:
     length: float
     thrust_mag: float
 
+    def dict(self):
+        """ Turns the current dataclass into a python dictionary """
+        return {str(k): v for k, v in asdict(self).items()}
+
 
 DEFAULT_DRONE_CONFIG = DroneConfig(
-    dt=1., tf=10., t0=0., x0=0., m=10., Inertia=1., length=1., thrust_mag=1.)
+    dt=1., tf=10., t0=0., x0=np.zeros(6), m=10., Inertia=1., length=1., thrust_mag=1.)
