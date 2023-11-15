@@ -1,17 +1,21 @@
 import numpy as np
 from scipy.linalg import solve_continuous_are as ricatti_solver
 
+import numpy as np
+import scipy.interpolate
+
 
 class PlanarQuadrotor:
+
     def __init__(self):
         # Dynamics constants
-        self.x_dim = 6         # state dimension (see dynamics below)
-        self.u_dim = 2         # control dimension (see dynamics below)
-        self.g = 9.807         # gravity (m / s**2)
-        self.m = 2.5           # mass (kg)
-        self.l = 1.0           # half-length (m)
-        self.Iyy = 1.0         # moment of inertia about the out-of-plane axis (kg * m**2)
-        self.Cd_v = 0.25       # translational drag coefficient
+        self.x_dim = 6  # state dimension (see dynamics below)
+        self.u_dim = 2  # control dimension (see dynamics below)
+        self.g = 9.807  # gravity (m / s**2)
+        self.m = 2.5  # mass (kg)
+        self.l = 1.0  # half-length (m)
+        self.Iyy = 1.0  # moment of inertia about the out-of-plane axis (kg * m**2)
+        self.Cd_v = 0.25  # translational drag coefficient
         self.Cd_phi = 0.02255  # rotational drag coefficient
 
         # Control constraints
@@ -46,22 +50,22 @@ class PlanarQuadrotor:
         x, v_x, y, v_y, phi, omega = state_nominal
         T_1, T_2 = control_nominal
         A = np.array([[0., 1., 0., 0., 0., 0.],
-                    [0., -self.Cd_v/self.m, 0., 0., -(T_1 + T_2)*np.cos(phi)/self.m, 0.],
-                    [0., 0., 0., 1., 0., 0.],
-                    [0., 0., 0., -self.Cd_v/self.m, -(T_1+T_2)*np.sin(phi)/self.m, 0.],
-                    [0., 0., 0., 0., 0., 1.],
-                    [0., 0., 0., 0., 0., -self.Cd_phi/self.Iyy]])
+                      [0., -self.Cd_v / self.m, 0., 0., -(T_1 + T_2) * np.cos(phi) / self.m, 0.],
+                      [0., 0., 0., 1., 0., 0.],
+                      [0., 0., 0., -self.Cd_v / self.m, -(T_1 + T_2) * np.sin(phi) / self.m, 0.],
+                      [0., 0., 0., 0., 0., 1.],
+                      [0., 0., 0., 0., 0., -self.Cd_phi / self.Iyy]])
         B = np.array([[0., 0.],
-                    [-np.sin(phi)/self.m, -np.sin(phi)/self.m],
-                    [0., 0.],
-                    [np.cos(phi)/self.m, np.cos(phi)/self.m],
-                    [0., 0.],
-                    [-self.l/self.Iyy, self.l/self.Iyy]])
+                      [-np.sin(phi) / self.m, -np.sin(phi) / self.m],
+                      [0., 0.],
+                      [np.cos(phi) / self.m, np.cos(phi) / self.m],
+                      [0., 0.],
+                      [-self.l / self.Iyy, self.l / self.Iyy]])
         return A, B
 
 
 class GainScheduled:
-    def __init__(self, trajectory):
+    def __init__(self, trajectory=None):
         self.trajectory = trajectory
         self.planar_quad = PlanarQuadrotor()
 
@@ -74,13 +78,11 @@ class GainScheduled:
         closest_state_idx = dist.index(min_val)
         return closest_state_idx
 
-    def gain_scheduling(self):
-        gains_lookup = {}  # This dictionary should map each time index of the state to a gains matrix
+    def policy(self, x, u):
         Q = 100 * np.diag([1., 0.1, 1., 0.1, 0.1, 0.1])
         R = 1e0 * np.diag([1., 1.])
 
-        for i in range(len(self.trajectory) - 1):
-            A, B = self.planar_quad.get_continuous_jacobians(self.trajectory[i], self.trajectory[i])
-            P = np.transpose(ricatti_solver(A, B, Q, R))
-            K = np.linalg.inv(R).dot(np.transpose(B)).dot(P)
-            gains_lookup[i] = K
+        A, B = self.planar_quad.get_continuous_jacobians(x, u)
+        P = np.transpose(ricatti_solver(A, B, Q, R))
+        K = np.linalg.inv(R).dot(np.transpose(B)).dot(P)
+        return K
