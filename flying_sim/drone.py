@@ -14,7 +14,7 @@ class Drone:
         self.thrust_mag = config.thrust_mag
 
         self.t = config.t0
-        self.x = config.x0
+        self.state: np.ndarray = config.state_0
         self.solver = self.dynamics()
 
     def dynamics(self) -> NonlinearIOSystem:
@@ -58,5 +58,5 @@ class Drone:
         return "Drone"
 
     def step(self, u, params: DroneConfig):
-        self.x = self.solver.dynamics(self.t, self.x, u, params.dict())
+        self.state = self.solver.dynamics(self.t, self.state, u, params.dict())
         self.t += self.dt
