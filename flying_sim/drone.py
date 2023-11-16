@@ -23,6 +23,9 @@ class Drone:
         # at least until variable-pitch quadrotors become mainstream :D
         self.min_thrust_per_prop = 0
 
+    def reset(self):
+        self.state = np.zeros(6, dtype=float)
+
     def ode(self, state: np.ndarray, control: np.ndarray) -> np.array:
         """ Continuous-time dynamics of a planar quadrotor expressed as an ODE """
         assert state.shape == (

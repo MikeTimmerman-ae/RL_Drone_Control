@@ -10,6 +10,7 @@ for _ in range(1000):
     observation, reward, terminated, truncated, info = env.step(action)
 
     if terminated or truncated:
+        print("[INFO] Resetting Environment")
         observation, info = env.reset()
 
 env.close()

@@ -35,7 +35,7 @@ class PIDFlightEnv(gym.Env):
         self.drone: Drone = Drone(config)
         print("[INFO] Setting up Trajectory")
         self.trajectory: Trajectory = Trajectory(config)
-        _, self.traj_f, _ = self.trajectory.interp_trajectory()
+        self.final_time, self.traj_f, _ = self.trajectory.interp_trajectory()
 
         self.target = np.array(
             self.config.trajectory_config.EGO_FINAL_GOAL_POS, dtype=float)
@@ -54,8 +54,8 @@ class PIDFlightEnv(gym.Env):
         # We need the following line to seed self.np_random
         super().reset(seed=seed)
 
-        self.drone = Drone(self.config)
-
+        self.drone.reset()
+        self.time: list[float] = [self.config.env_config.t0]
         observation = self._get_obs()
         info = self._get_info()
 
@@ -77,8 +77,14 @@ class PIDFlightEnv(gym.Env):
 
         self.time.append(self.time[-1]+self.dt)
 
-        terminated = np.linalg.norm(self.drone.state[:2] - self.target) < 1
-        reward = 1 if terminated else 0  # Binary sparse rewards
+        terminated = np.linalg.norm(
+            self.drone.state[:2] - self.target) < 1 or self.time[-1] > self.final_time - self.dt
+
+        if terminated:
+            print("Terminated")
+
+        # TODO: Implement reward function
+        reward = 1 if terminated else 0
         observation = self._get_obs()
         info = self._get_info()
 
