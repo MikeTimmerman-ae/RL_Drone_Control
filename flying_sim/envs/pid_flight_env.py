@@ -4,20 +4,17 @@ import gymnasium as gym
 from gymnasium import spaces
 
 from flying_sim.drone import Drone
-from flying_sim.config import DroneConfig, DEFAULT_DRONE_CONFIG
+from flying_sim.config import Config
 from flying_sim.controller import PDController, Gains, create_gains_from_array
-
-
-def get_dummy_trajectory():
-    return np.array([1., 0., 1., 0., 0., 0.], dtype=float)
+from flying_sim.trajectory import Trajectory
 
 
 class PIDFlightEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
 
-    def __init__(self, config: DroneConfig = None, render_mode=None):
+    def __init__(self, config: Config, render_mode=None):
         self.action_space = spaces.Box(
-            low=0.0, high=1.0, shape=(6, 1), dtype=np.float32)
+            low=0.0, high=1.0, shape=(6, ), dtype=np.float32)
 
         self.observation_space = spaces.Box(
             low=-np.inf, high=np.inf, shape=(6, 1), dtype=np.float32)
@@ -30,21 +27,22 @@ class PIDFlightEnv(gym.Env):
         self.window = None
         self.clock = None
 
-        if config is not None:
-            self.configure(config)
-        else:
-            print("[INFO] Using Default Drone Configurations")
-            self.configure(DEFAULT_DRONE_CONFIG)
+        self.configure(config)
 
-    def configure(self, config: DroneConfig):
-        self.config: DroneConfig = config
+    def configure(self, config: Config):
+        self.config: Config = config
+        print("[INFO] Setting up Drone")
         self.drone: Drone = Drone(config)
-        # x, vx, y, vy, theta, omega
-        self.trajectory = get_dummy_trajectory()
-        target_x: float = 10.
-        target_y: float = 10.
+        print("[INFO] Setting up Trajectory")
+        self.trajectory: Trajectory = Trajectory(config)
+        _, self.traj_f, _ = self.trajectory.interp_trajectory()
+
         self.target = np.array(
-            [target_x, target_y], dtype=float)
+            self.config.trajectory_config.EGO_FINAL_GOAL_POS, dtype=float)
+
+        self.time: list[float] = [config.env_config.t0]
+        self.dt = config.env_config.dt
+        print("[INFO] Finished setting up Environement")
 
     def _get_obs(self):
         return {"agent": self.drone.state, "trajectory": self.trajectory}
@@ -64,13 +62,21 @@ class PIDFlightEnv(gym.Env):
         return observation, info
 
     def step(self, action):
-        assert action.shape == (6, 1)
-        controller_gains: Gains = create_gains_from_array(action)
-        thrust = self.pd_controller.compute_thrust(
-            self.drone, controller_gains, self.trajectory)
-        self.drone.step(thrust, self.config)
+        assert action.shape == (6, )
 
-        # An episode is done iff the agent has reached the target
+        controller_gains: Gains = create_gains_from_array(action)
+
+        desired_state: np.array = self.traj_f(self.time[-1])
+
+        thrust = self.pd_controller.compute_thrust(
+            self.drone, controller_gains, desired_state)
+        thrust = thrust.reshape((self.drone.u_dim,))
+        thrust[thrust < 0] = 0
+
+        self.drone.step_RK1(control=thrust, dt=self.dt)
+
+        self.time.append(self.time[-1]+self.dt)
+
         terminated = np.linalg.norm(self.drone.state[:2] - self.target) < 1
         reward = 1 if terminated else 0  # Binary sparse rewards
         observation = self._get_obs()

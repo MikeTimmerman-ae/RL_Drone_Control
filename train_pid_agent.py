@@ -1,5 +1,8 @@
 import gymnasium as gym
-env = gym.make("flying_sim:flying_sim/PIDFlightArena-v0")
+from flying_sim.config import Config
+
+config = Config()
+env = gym.make("flying_sim:flying_sim/PIDFlightArena-v0", config=config)
 observation, info = env.reset(seed=42)
 
 for _ in range(1000):

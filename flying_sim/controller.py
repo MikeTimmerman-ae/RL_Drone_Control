@@ -14,7 +14,7 @@ class Gains:
 
 
 def create_gains_from_array(array: np.ndarray) -> Gains:
-    if array.shape != (6, 1):
+    if array.shape != (6, ):
         raise ValueError("Gain-Array must have exactly 6 elements!")
 
     return Gains(*array)
