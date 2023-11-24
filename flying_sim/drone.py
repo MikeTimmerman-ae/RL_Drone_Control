@@ -5,7 +5,8 @@ import numpy as np
 
 class Drone:
     def __init__(self, config: Config):
-        self.state = np.zeros(6, dtype=float)
+        self.state = np.array([config.trajectory_config.EGO_START_POS[0],
+                               config.trajectory_config.EGO_START_POS[1], 0, 0, 0, 0])
 
         self.x_dim = config.drone_config.x_dim  # state dimension
         self.u_dim = config.drone_config.u_dim  # control dimension
@@ -43,25 +44,22 @@ class Drone:
             ((T_2 - T_1) * self.l - self.Cd_phi * omega) / self.I,
         ])
 
-    def step_RK1(self, control: np.ndarray, dt: float, state: np.ndarray = None) -> np.array:
+    def step_RK1(self, state: np.ndarray, control: np.ndarray, dt: float) -> np.array:
         """ Discrete-time dynamics (Euler-integrated) of a planar quadrotor """
-        if state is None:
-            self.state += dt * self.ode(self.state, control)
-        else:
-            self.state = state + dt * self.ode(state, control)
-        return self.state
+        state = state + dt * self.ode(state, control)
+        return state
 
-    def step_RK4(self, state: np.ndarray, control: np.ndarray, dt: float) -> np.array:
+    def step_RK4(self, control: np.ndarray, dt: float) -> np.array:
         """ Discrete-time dynamics (Runge-Kutta 4) of a planar quadrotor """
-        assert state.shape == (
-            self.x_dim,), f"{state.shape} does not equal {(self.x_dim,)}"
+        assert self.state.shape == (
+            self.x_dim,), f"{self.state.shape} does not equal {(self.x_dim,)}"
         assert control.shape == (
             self.u_dim,), f"{control.shape} does not equal {(self.u_dim,)}"
-        k1 = self.ode(state, control)
-        k2 = self.ode(state + dt / 2 * k1, control)
-        k3 = self.ode(state + dt / 2 * k2, control)
-        k4 = self.ode(state + dt * k3, control)
-        return state + dt * (1/6*k1 + 1/3*k2 + 1/3*k3 + 1/6*k4)
+        k1 = self.ode(self.state, control)
+        k2 = self.ode(self.state + dt / 2 * k1, control)
+        k3 = self.ode(self.state + dt / 2 * k2, control)
+        k4 = self.ode(self.state + dt * k3, control)
+        self.state += dt * (1/6*k1 + 1/3*k2 + 1/3*k3 + 1/6*k4)
 
     def get_continuous_jacobians(self, state_nominal: np.array, control_nominal: np.array) -> np.array:
         """Continuous-time Jacobians of planar quadrotor, written as a function of input state and control"""

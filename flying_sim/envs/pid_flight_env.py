@@ -73,7 +73,7 @@ class PIDFlightEnv(gym.Env):
         thrust = thrust.reshape((self.drone.u_dim,))
         thrust[thrust < 0] = 0
 
-        self.drone.step_RK1(control=thrust, dt=self.dt)
+        self.drone.step_RK4(control=thrust, dt=self.dt)
 
         self.time.append(self.time[-1]+self.dt)
 
