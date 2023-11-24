@@ -38,3 +38,12 @@ class Config(object):
     gain_scheduled_config = BaseConfig()
     gain_scheduled_config.Q = 100 * np.diag([1., 0.1, 1., 0.1, 0.1, 0.1])
     gain_scheduled_config.R = 1e0 * np.diag([1., 1.])
+
+    # Configuration of cascaded PD controller
+    cascaded_PD = BaseConfig()
+    cascaded_PD.Kp_omega = 10
+    cascaded_PD.Kp_theta = 5.6
+    cascaded_PD.Kp_vx = -0.2
+    cascaded_PD.Kp_vy = 7.5
+    cascaded_PD.Kp_x = 1.04
+    cascaded_PD.Kp_y = 1.05

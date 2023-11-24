@@ -100,7 +100,7 @@ class Trajectory:
             final_time, states, controls = self.unpack_decision_variables(z)
             dt = final_time / N
             constraint_list = [states[i + 1] - self.planar_quad.step_RK1(
-                controls[i], dt, state=states[i]) for i in range(N)]
+                states[i], controls[i], dt) for i in range(N)]
             constraint_list.append(states[0] - self.s_0)
             constraint_list.append(states[-1] - self.s_f)
             return np.concatenate(constraint_list)
@@ -130,6 +130,6 @@ class Trajectory:
 
         t = np.linspace(0, tf, self.N)
 
-        f_sref = interp1d(t, s[:-1], axis=0)
-        f_uref = interp1d(t, u, axis=0)
+        f_sref = interp1d(t, s[:-1], axis=0, bounds_error=False, fill_value=(s[0], s[-1]))
+        f_uref = interp1d(t, u, axis=0, bounds_error=False, fill_value=(u[0], u[-1]))
         return tf, f_sref, f_uref
