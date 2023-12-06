@@ -1,10 +1,13 @@
 from flying_sim.drone import Drone
-from flying_sim.config import Config
+from flying_sim.configs.config import Config
 
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize, Bounds
 from scipy.interpolate import interp1d
+import matplotlib
+
+matplotlib.use('TkAgg')
 
 
 class Trajectory:
@@ -116,20 +119,43 @@ class Trajectory:
                           constraints=[{
                               "type": "eq",
                               "fun": equality_constraints
-                          }, {
+                          },
+                          {
                               "type": "ineq",
                               "fun": inequality_constraints
-                          }])
+                          }
+                          ])
         if verbose:
             print(result.message)
         return self.unpack_decision_variables(result.x)
 
-    def interp_trajectory(self):
-        tf, s, u = self.optimize_trajectory(verbose=True)
-        self.render_scene(s)
-
+    def save_trajectory(self, save_file: str):
+        tf, s, u = self.optimize_trajectory(verbose=False)
         t = np.linspace(0, tf, self.N)
 
-        f_sref = interp1d(t, s[:-1], axis=0, bounds_error=False, fill_value=(s[0], s[-1]))
+        self.render_scene(s).show()
+
+        data = np.hstack((t.reshape(self.N, 1), s[:-1], u))
+        np.savetxt(save_file, data)
+
+    def load_trajectory(self, load_file: str):
+        data = np.loadtxt(load_file)
+        t = data[:, 0]
+        s = data[:, 1:7]
+        u = data[:, 7:10]
+        tf = t[-1]
+        return t, s, u, tf
+
+    def interp_trajectory(self, load_file=None):
+        if load_file is None:
+            tf, s, u = self.optimize_trajectory(verbose=False)
+            t = np.linspace(0, tf, self.N)
+            s = s[:-1]
+        else:
+            t, s, u, tf = self.load_trajectory(load_file)
+
+        # self.render_scene(s)
+
+        f_sref = interp1d(t, s, axis=0, bounds_error=False, fill_value=(s[0], s[-1]))
         f_uref = interp1d(t, u, axis=0, bounds_error=False, fill_value=(u[0], u[-1]))
         return tf, f_sref, f_uref

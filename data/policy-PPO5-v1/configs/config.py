@@ -1,5 +1,5 @@
-from dataclasses import asdict, dataclass
 import numpy as np
+import torch
 
 
 class BaseConfig(object):
@@ -11,8 +11,26 @@ class Config(object):
 
     # Configuration of Environment
     env_config = BaseConfig()
-    env_config.dt: float = 0.01
-    env_config.t0: float = 0.
+    env_config.env_name = 'flying_sim:flying_sim/PIDFlightArena-v0'
+    env_config.dt = 0.01
+    env_config.t0 = 0.
+    env_config.seed = 50
+
+    # Training configurations
+    training = BaseConfig()
+    training.num_processes = 1
+    training.num_threads = 1
+    training.output_dir = 'data/policy-PPO5-v1/'
+    training.overwrite = True
+    training.no_cuda = True  # disables CUDA training
+    training.cuda = not training.no_cuda and torch.cuda.is_available()
+    training.cuda_deterministic = False  # sets flags for determinism when using CUDA (potentially slow!)
+    training.log_interval = 10
+    training.num_env_steps = 1e5
+
+    # PPO configurations
+    ppo = BaseConfig()
+    ppo.num_steps = 30
 
     # Configuration of drone
     drone_config = BaseConfig()
@@ -34,6 +52,11 @@ class Config(object):
     # Number of time discretization nodes (0, 1, ... N).
     trajectory_config.N = 50
 
+    # Configuration of RL scheduled controller
+    RL_scheduled_config = BaseConfig()
+    RL_scheduled_config.lower_gains = np.array([0.6, -0.3, 4, 8, 0.6, 6])
+    RL_scheduled_config.upper_gains = np.array([1.4, -0.1, 7, 12, 1.4, 9])
+
     # Configuration of gain scheduled controller
     gain_scheduled_config = BaseConfig()
     gain_scheduled_config.Q = 100 * np.diag([1., 0.1, 1., 0.1, 0.1, 0.1])
@@ -41,9 +64,9 @@ class Config(object):
 
     # Configuration of cascaded PD controller
     cascaded_PD = BaseConfig()
-    cascaded_PD.Kp_omega = 10
-    cascaded_PD.Kp_theta = 5.6
-    cascaded_PD.Kp_vx = -0.2
-    cascaded_PD.Kp_vy = 7.5
     cascaded_PD.Kp_x = 1.04
+    cascaded_PD.Kp_vx = -0.2
+    cascaded_PD.Kp_theta = 5.6
+    cascaded_PD.Kp_omega = 10
     cascaded_PD.Kp_y = 1.05
+    cascaded_PD.Kp_vy = 7.5

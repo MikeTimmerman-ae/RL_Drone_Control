@@ -1,12 +1,13 @@
-from flying_sim.config import Config
+from flying_sim.configs.config import Config
 
 import numpy as np
 
 
 class Drone:
     def __init__(self, config: Config):
-        self.state = np.array([config.trajectory_config.EGO_START_POS[0],
-                               config.trajectory_config.EGO_START_POS[1], 0, 0, 0, 0])
+        self.init_state = np.array([config.trajectory_config.initial_positions[2][0],
+                                    config.trajectory_config.initial_positions[2][1], 0, 0, 0, 0])
+        self.state = self.init_state
 
         self.x_dim = config.drone_config.x_dim  # state dimension
         self.u_dim = config.drone_config.u_dim  # control dimension
@@ -25,7 +26,7 @@ class Drone:
         self.min_thrust_per_prop = 0
 
     def reset(self):
-        self.state = np.zeros(6, dtype=float)
+        self.state = self.init_state.copy()
 
     def ode(self, state: np.ndarray, control: np.ndarray) -> np.array:
         """ Continuous-time dynamics of a planar quadrotor expressed as an ODE """

@@ -7,10 +7,10 @@ from flying_sim.drone import Drone
 class Gains:
     k_x: float
     k_vx: float
-    k_y: float
-    k_vy: float
     k_theta: float
     k_omega: float
+    k_y: float
+    k_vy: float
 
 
 def create_gains_from_array(array: np.ndarray) -> Gains:
