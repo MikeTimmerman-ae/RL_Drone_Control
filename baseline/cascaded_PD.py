@@ -23,8 +23,6 @@ class CascadedPD:
 
         Returns: control input based on cascaded PD control
         """
-        assert x_ref.shape == (self.planar_quad.x_dim,), f'State is of dimension {x_ref.shape}'
-
         torque = self._torque_command(x_ref[0])
         thrust = self._thrust_command(x_ref[1])
 
@@ -39,6 +37,7 @@ class CascadedPD:
         self.Kp_omega = self.l_gains[3] + (controller_gains[3] + 1) * (self.u_gains[3] - self.l_gains[3]) / 2
         self.Kp_y = self.l_gains[4] + (controller_gains[4] + 1) * (self.u_gains[4] - self.l_gains[4]) / 2
         self.Kp_vy = self.l_gains[5] + (controller_gains[5] + 1) * (self.u_gains[5] - self.l_gains[5]) / 2
+        return np.array([self.Kp_x, self.Kp_vx, self.Kp_theta, self.Kp_omega, self.Kp_y, self.Kp_vy])
 
     def _thrust_command(self, y_ref) -> float:
         Vy_ref = self.Kp_y * (y_ref - self.planar_quad.state[1])

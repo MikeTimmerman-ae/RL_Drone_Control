@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 from flying_sim.configs.config import DroneConfig
 
-from flying_sim.controller import Gains, PDController
+from tests.controller import Gains, PDController
 from flying_sim.drone import Drone
 
 

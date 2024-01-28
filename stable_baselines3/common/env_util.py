@@ -88,7 +88,8 @@ def make_vec_env(
 
             if isinstance(env_id, str):
                 # if the render mode was not specified, we set it to `rgb_array` as default.
-                kwargs = {"render_mode": "rgb_array"}
+                kwargs = {"render_mode": "rgb_array",
+                          "rank": rank}
                 kwargs.update(env_kwargs)
                 try:
                     env = gym.make(env_id, **kwargs)  # type: ignore[arg-type]

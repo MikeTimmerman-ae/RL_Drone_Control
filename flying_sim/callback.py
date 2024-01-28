@@ -33,6 +33,9 @@ class CustomCallback(BaseCallback):
 
         # Sometimes, for event callback, it is useful to have access to the parent object
         # self.parent = None  # type: Optional[BaseCallback]
+        self.prev_successes = 0
+        self.prev_deviations = 0
+        self.prev_time_outs = 0
 
     def _on_training_start(self) -> None:
         """
@@ -62,12 +65,37 @@ class CustomCallback(BaseCallback):
     def _on_rollout_end(self):
         # Plot drone trajectory (xy-position)
         env = self.model.get_env()
-        info = env.reset_infos[0]
-        figure = plt.figure(f"Number of time steps: {self.num_timesteps}")
-        figure.add_subplot().plot(info['states'][:, 0], info['states'][:, 1])
-        # Close the figure after logging it
-        self.logger.record(f"trajectory/figure{self.num_timesteps}", Figure(figure, close=True), exclude=("stdout", "log", "json", "csv"))
-        plt.close()
+        infos = env.reset_infos
+
+        # Log flight trajectories after each simulation run
+        success = 0
+        deviation = 0
+        time_out = 0
+
+        for i, info in enumerate(infos):
+            figure = plt.figure(f"Number of time steps: {self.num_timesteps}")
+            plt.plot(info['states'][:, 0], info['states'][:, 1], label='State Trajectory')
+            plt.plot(info['reference'][:, 0], info['reference'][:, 1], label='Optimal Trajectory')
+            plt.legend()
+            plt.grid()
+            plt.title('Step Reference Tracking')
+            self.logger.record(f"trajectory/trajectory_{i+1}_{self.num_timesteps}", Figure(figure, close=True), exclude=("stdout", "log", "json", "csv"))
+            plt.close()
+
+            success += info['reach_count']
+            deviation += info['deviation_count']
+            time_out += info['timeout_count']
+
+        # Log number of terminations, deviations and success
+        if (self.num_timesteps // env.num_envs // infos[0]['num_steps']) % infos[0]['log_interval'] == 0:
+            self.logger.record("success_rate/success", success - self.prev_successes)
+            self.logger.record("success_rate/deviation", deviation - self.prev_deviations)
+            self.logger.record("success_rate/time_out", time_out - self.prev_time_outs)
+
+            self.prev_successes = success
+            self.prev_deviations = deviation
+            self.prev_time_outs = time_out
+
         return True
 
     def _on_training_end(self) -> None:

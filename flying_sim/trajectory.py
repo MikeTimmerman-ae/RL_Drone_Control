@@ -47,8 +47,8 @@ class Trajectory:
                 ax.add_patch(ego_arrow_current)
         ax.add_patch(ego_circle_start)
         ax.add_patch(ego_circle_end)
-        ax.set_xlim((-1.0, 11.0))
-        ax.set_ylim((4.0, 10.0))
+        ax.set_xlim((-10.0, 10.0))
+        ax.set_ylim((0.0, 10.0))
         ax.set_aspect('equal')
         return plt
 
@@ -106,12 +106,15 @@ class Trajectory:
                 states[i], controls[i], dt) for i in range(N)]
             constraint_list.append(states[0] - self.s_0)
             constraint_list.append(states[-1] - self.s_f)
+            constraint_list.append(controls[0] - self.planar_quad.init_control)
             return np.concatenate(constraint_list)
 
         def inequality_constraints(z):
             final_time, states, controls = self.unpack_decision_variables(z)
             # Collision avoidance
-            return np.sum(np.square(states[:, [0, 1]] - np.array([5, 5])), -1) - 3 ** 2
+            obstacle_1 = np.sum(np.square(states[:, [0, 1]] - np.array([1, 4])), -1) - 0.5 ** 2
+            obstacle_2 = np.sum(np.square(states[:, [0, 1]] - np.array([3, 6])), -1) - 0.5 ** 2
+            return np.hstack((obstacle_1, obstacle_2))
 
         result = minimize(cost,
                           z_guess,
@@ -119,10 +122,6 @@ class Trajectory:
                           constraints=[{
                               "type": "eq",
                               "fun": equality_constraints
-                          },
-                          {
-                              "type": "ineq",
-                              "fun": inequality_constraints
                           }
                           ])
         if verbose:
@@ -148,7 +147,7 @@ class Trajectory:
 
     def interp_trajectory(self, load_file=None):
         if load_file is None:
-            tf, s, u = self.optimize_trajectory(verbose=False)
+            tf, s, u = self.optimize_trajectory(verbose=True)
             t = np.linspace(0, tf, self.N)
             s = s[:-1]
         else:
@@ -159,3 +158,7 @@ class Trajectory:
         f_sref = interp1d(t, s, axis=0, bounds_error=False, fill_value=(s[0], s[-1]))
         f_uref = interp1d(t, u, axis=0, bounds_error=False, fill_value=(u[0], u[-1]))
         return tf, f_sref, f_uref
+
+
+# trajectory = Trajectory(Config())
+# trajectory.save_trajectory('trajectories/trajectory_optimal_step.csv')

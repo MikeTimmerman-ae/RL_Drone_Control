@@ -5,25 +5,27 @@ import numpy as np
 
 class Drone:
     def __init__(self, config: Config):
-        self.init_state = np.array([config.trajectory_config.initial_positions[2][0],
-                                    config.trajectory_config.initial_positions[2][1], 0, 0, 0, 0])
-        self.state = self.init_state
 
-        self.x_dim = config.drone_config.x_dim  # state dimension
-        self.u_dim = config.drone_config.u_dim  # control dimension
-        self.g = config.drone_config.g  # gravity (m / s**2)
-        self.m = config.drone_config.m  # mass (kg)
-        self.l = config.drone_config.l  # half-length (m)
-        # moment of inertia about the out-of-plane axis (kg * m**2)
-        self.I = config.drone_config.I
-        self.Cd_v = config.drone_config.Cd_v  # translational drag coefficient
-        self.Cd_phi = config.drone_config.Cd_phi  # rotational drag coefficient
+        self.x_dim = config.drone_config.x_dim      # state dimension
+        self.u_dim = config.drone_config.u_dim      # control dimension
+        self.g = config.drone_config.g              # gravity (m / s**2)
+        self.m = config.drone_config.m              # mass (kg)
+        self.l = config.drone_config.l              # half-length (m)
+        self.I = config.drone_config.I              # moment of inertia about the out-of-plane axis (kg * m**2)
+        self.Cd_v = config.drone_config.Cd_v        # translational drag coefficient
+        self.Cd_phi = config.drone_config.Cd_phi    # rotational drag coefficient
+        self.state_covariance = config.drone_config.state_covariance    # state update uncertainty
+
+        # Initialize system
+        self.init_state = np.array([0, 0, 0, 0, 0, 0], dtype=np.float64)
+        self.init_control = np.array([0.5 * self.m * self.g, 0.5 * self.m * self.g])
+        self.state = self.init_state
+        self.control = self.init_control
 
         # Control constraints
-        self.max_thrust_per_prop = 0.75 * self.m * \
-            self.g  # total thrust-to-weight ratio = 1.5
-        # at least until variable-pitch quadrotors become mainstream :D
-        self.min_thrust_per_prop = 0
+        self.max_thrust_per_prop = 0.75 * self.m * self.g   # total thrust-to-weight ratio = 1.5
+        self.min_thrust_per_prop = 0                        # until variable-pitch quadrotors become mainstream :D
+        self.thrust_rate = 5 * self.m * self.g              # max change in thrust / second
 
     def reset(self):
         self.state = self.init_state.copy()
@@ -56,11 +58,24 @@ class Drone:
             self.x_dim,), f"{self.state.shape} does not equal {(self.x_dim,)}"
         assert control.shape == (
             self.u_dim,), f"{control.shape} does not equal {(self.u_dim,)}"
+        control = self.clip_control(control, dt)
         k1 = self.ode(self.state, control)
         k2 = self.ode(self.state + dt / 2 * k1, control)
         k3 = self.ode(self.state + dt / 2 * k2, control)
         k4 = self.ode(self.state + dt * k3, control)
-        self.state += dt * (1/6*k1 + 1/3*k2 + 1/3*k3 + 1/6*k4)
+        self.state += dt * (1/6*k1 + 1/3*k2 + 1/3*k3 + 1/6*k4) # + np.random.multivariate_normal(np.zeros(6), self.state_covariance)
+
+    def clip_control(self, control: np.ndarray, dt: float) -> np.ndarray:
+        temp = np.zeros(2)
+        for i, (prev_thrust, thrust) in enumerate(zip(self.control, control)):
+            if thrust > prev_thrust + self.thrust_rate * dt or thrust > self.max_thrust_per_prop:
+                temp[i] = min(prev_thrust + self.thrust_rate * dt, self.max_thrust_per_prop)
+            elif thrust < prev_thrust - self.thrust_rate * dt or thrust < self.min_thrust_per_prop:
+                temp[i] = max(prev_thrust - self.thrust_rate * dt, self.min_thrust_per_prop)
+            else:
+                temp[i] = thrust
+        self.control = temp
+        return temp
 
     def get_continuous_jacobians(self, state_nominal: np.array, control_nominal: np.array) -> np.array:
         """Continuous-time Jacobians of planar quadrotor, written as a function of input state and control"""

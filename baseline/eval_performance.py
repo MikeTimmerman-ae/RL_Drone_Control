@@ -4,7 +4,7 @@ import numpy as np
 
 
 def ISE(state_traj: np.ndarray, ref_traj: np.ndarray, dt: float) -> float:
-    ISE = np.sum(np.linalg.norm(state_traj[:, :2] - ref_traj[:-1, :2])) * dt
+    ISE = np.sum(np.linalg.norm(state_traj[:, :2] - ref_traj[:, :2])) * dt
     return ISE
 
 
